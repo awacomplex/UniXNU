@@ -24,6 +24,10 @@ on:
           - kernel userdata
           - kernel userdata payload
         default: kernel
+      upload_kernel:
+        description: Upload kernel/kernel.macho as an artifact (Apple-derived; use only in a PRIVATE repository for your own device)
+        type: boolean
+        default: false
       xcode:
         description: Xcode version of the macos-26 image (/Applications/Xcode_<version>.app)
         required: true
@@ -215,6 +219,17 @@ jobs:
           # the shared rate limit (HTTP 403).
           GITHUB_TOKEN: ${{ github.token }}
         run: ./unixnu build kernel
+
+      - name: Upload the kernel
+        if: ${{ inputs.upload_kernel && steps.kernel.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          # kernel.macho derives from Apple XNU source + the prelink kernelcache.
+          # Only enable upload_kernel in a PRIVATE repository for your own device.
+          name: kernel-macho-${{ steps.check.outputs.board }}
+          path: ${{ steps.check.outputs.work }}/kernel/kernel.macho
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Build userdata
         id: userdata
