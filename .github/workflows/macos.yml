@@ -287,6 +287,16 @@ jobs:
           path: ${{ runner.temp }}/public-logs/*.log
           if-no-files-found: warn
           retention-days: 7
+      - name: Upload full logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-logs
+          path: |
+            out/**/logs/**
+            out/**/*.log
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Summary
         if: always()
