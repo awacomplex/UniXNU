@@ -60,6 +60,14 @@ on:
         description: Mark Setup as done in the Data seed
         type: boolean
         default: false
+      make_data_seed:
+        description: Generate a bare APFS Data seed on the runner
+        type: boolean
+        default: false
+      upload_payload:
+        description: Upload the payload volume as an artifact (Apple-derived; private repository only)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -238,6 +246,30 @@ jobs:
           ./unixnu build userdata
           df -h "$GITHUB_WORKSPACE"
 
+      - name: Prepare a bare Data seed
+        if: inputs.make_data_seed == true && contains(inputs.steps, 'payload')
+        run: |
+          set -euo pipefail
+          IMG="$RUNNER_TEMP/data.cdr"
+          SEED="$RUNNER_TEMP/data.dbr"
+          MNT="$RUNNER_TEMP/data-mnt"
+          rm -rf "$IMG" "$SEED" "$MNT"
+          hdiutil create -size 64m -layout NONE -fs APFS -volname Data -type UDTO -ov "$IMG"
+          mkdir -p "$MNT"
+          hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$IMG"
+          mkdir -p "$MNT/private/var/run" "$MNT/private/var/db" "$MNT/private/var/log" \
+                   "$MNT/private/var/tmp" "$MNT/private/var/mobile" "$MNT/private/var/keybags"
+          chmod 1777 "$MNT/private/var/tmp"
+          hdiutil detach "$MNT"
+          python3 - "$IMG" "$SEED" <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'drivers/DarwinBoot/Test')
+          import packed_ramdisk
+          packed_ramdisk.pack(Path(sys.argv[1]), Path(sys.argv[2]))
+          PY
+          ls -l "$SEED"
+
       - name: Build payload
         id: payload
         if: contains(inputs.steps, 'payload')
@@ -257,6 +289,13 @@ jobs:
           if [ -f "$RUNNER_TEMP/data.dbr" ]; then args+=(--data-ramdisk "$RUNNER_TEMP/data.dbr"); fi
           if [ "$SKIP_SETUP" = true ]; then args+=(--skip-setup); fi
           ./unixnu build payload "${args[@]}"
+
+      - name: Upload the payload volume
+        if: inputs.upload_payload == true && contains(inputs.steps, 'payload')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unixnu-${{ steps.check.outputs.board }}-payload-${{ github.run_attempt }}
+          path: ${{ steps.check.outputs.work }}/payload/payload.img
 
       - name: Collect the text logs
         id: logs
