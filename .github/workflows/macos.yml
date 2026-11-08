@@ -265,6 +265,7 @@ jobs:
             curl -L --retry 3 -o "$RUNNER_TEMP/ipsw.zip" "$IPSW_URL"
             mkdir -p "$RUNNER_TEMP/ipsw"
             unzip -o -q "$RUNNER_TEMP/ipsw.zip" '044-76040-038.dmg' -d "$RUNNER_TEMP/ipsw"
+            rm -f "$RUNNER_TEMP/ipsw.zip"
             OSVOL=$(hdiutil attach -nobrowse -readonly "$RUNNER_TEMP/ipsw/044-76040-038.dmg" | awk '/\/Volumes\// {print $NF; exit}')
             echo "OS volume at $OSVOL"
           fi
@@ -303,6 +304,52 @@ jobs:
           cp "$SEED" "$RUNNER_TEMP/data-seed.dbr"
           ls -l "$RUNNER_TEMP/data-seed.dbr"
 
+      - name: Build a Data container image
+        if: inputs.make_data_seed == true && contains(inputs.steps, 'payload')
+        env:
+          IPSW_URL: ${{ inputs.ipsw_url }}
+        run: |
+          set -euo pipefail
+          IMG="$RUNNER_TEMP/data-raw.img"
+          MNT="$RUNNER_TEMP/cont-mnt"
+          rm -rf "$IMG" "$MNT" "$RUNNER_TEMP/data.udro"
+          hdiutil create -size 4g -fs APFS -volname Data -type UDRO -ov "$RUNNER_TEMP/data.udro"
+          mkdir -p "$MNT"
+          hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$RUNNER_TEMP/data.udro"
+          DMG="$RUNNER_TEMP/ipsw/044-76040-038.dmg"
+          if [ ! -f "$DMG" ] && [ -n "${IPSW_URL:-}" ]; then
+            curl -L --retry 3 -o "$RUNNER_TEMP/ipsw.zip" "$IPSW_URL"
+            mkdir -p "$RUNNER_TEMP/ipsw"
+            unzip -o -q "$RUNNER_TEMP/ipsw.zip" '044-76040-038.dmg' -d "$RUNNER_TEMP/ipsw"
+            rm -f "$RUNNER_TEMP/ipsw.zip"
+          fi
+          OSVOL=""
+          if [ -f "$DMG" ]; then
+            OSVOL=$(hdiutil attach -nobrowse -readonly "$DMG" | awk '/\/Volumes\// {print $NF; exit}')
+          fi
+          if [ -n "$OSVOL" ] && [ -d "$OSVOL/private/var" ]; then
+            echo "copying the OS private/var from $OSVOL"
+            mkdir -p "$MNT/private"
+            ditto "$OSVOL/private/var" "$MNT/private/var"
+            rm -rf "$MNT/private/var/staged_system_apps"
+          else
+            echo "no OS volume: building the empty container"
+          fi
+          mkdir -p "$MNT/private/var/run" "$MNT/private/var/db" "$MNT/private/var/log" \
+                   "$MNT/private/var/tmp" "$MNT/private/var/mobile" "$MNT/private/var/keybags"
+          chmod 1777 "$MNT/private/var/tmp"
+          du -sh "$MNT/private/var" || true
+          diskutil info -plist "$MNT" > "$RUNNER_TEMP/cont-info.plist"
+          python3 - "$RUNNER_TEMP/cont-info.plist" "$RUNNER_TEMP/cont-uuid.txt" <<'PY'
+          import plistlib, sys
+          info = plistlib.load(open(sys.argv[1], "rb"))
+          open(sys.argv[2], "w").write(info["VolumeUUID"] + "\n")
+          print("Data container UUID", info["VolumeUUID"])
+          PY
+          hdiutil detach "$MNT"
+          hdiutil convert "$RUNNER_TEMP/data.udro" -format UDRW -o "$IMG"
+          ls -l "$IMG"
+
       - name: Build payload
         id: payload
         if: contains(inputs.steps, 'payload')
@@ -332,6 +379,16 @@ jobs:
             ${{ steps.check.outputs.work }}/payload/payload.img
             ${{ runner.temp }}/data-uuid.txt
             ${{ runner.temp }}/data-seed.dbr
+
+      - name: Upload the Data container
+        if: inputs.make_data_seed == true && contains(inputs.steps, 'payload')
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-container
+          path: |
+            ${{ runner.temp }}/data-raw.img
+            ${{ runner.temp }}/cont-uuid.txt
+          if-no-files-found: warn
 
       - name: Collect the text logs
         id: logs
