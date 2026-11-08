@@ -260,6 +260,13 @@ jobs:
           mkdir -p "$MNT/private/var/run" "$MNT/private/var/db" "$MNT/private/var/log" \
                    "$MNT/private/var/tmp" "$MNT/private/var/mobile" "$MNT/private/var/keybags"
           chmod 1777 "$MNT/private/var/tmp"
+          diskutil info -plist "$MNT" > "$RUNNER_TEMP/data-info.plist"
+          python3 - "$RUNNER_TEMP/data-info.plist" "$RUNNER_TEMP/data-uuid.txt" <<'PY'
+          import plistlib, sys
+          info = plistlib.load(open(sys.argv[1], "rb"))
+          open(sys.argv[2], "w").write(info["VolumeUUID"] + "\n")
+          print("Data seed volume UUID", info["VolumeUUID"])
+          PY
           hdiutil detach "$MNT"
           python3 - "$IMG" "$SEED" <<'PY'
           import sys
@@ -295,7 +302,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unixnu-${{ steps.check.outputs.board }}-payload-${{ github.run_attempt }}
-          path: ${{ steps.check.outputs.work }}/payload/payload.img
+          path: |
+            ${{ steps.check.outputs.work }}/payload/payload.img
+            ${{ runner.temp }}/data-uuid.txt
 
       - name: Collect the text logs
         id: logs
