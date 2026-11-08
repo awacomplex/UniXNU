@@ -254,7 +254,7 @@ jobs:
           SEED="$RUNNER_TEMP/data.dbr"
           MNT="$RUNNER_TEMP/data-mnt"
           rm -rf "$IMG" "$SEED" "$MNT"
-          hdiutil create -size 8m -layout NONE -fs APFS -volname Data -type UDTO -ov "$IMG"
+          hdiutil create -size 5m -layout NONE -fs APFS -volname Data -type UDTO -ov "$IMG"
           mkdir -p "$MNT"
           hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$IMG"
           mkdir -p "$MNT/private/var/run" "$MNT/private/var/db" "$MNT/private/var/log" \
