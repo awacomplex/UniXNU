@@ -314,7 +314,7 @@ jobs:
           IMG="$RUNNER_TEMP/data-raw"
           MNT="$RUNNER_TEMP/cont-mnt"
           rm -rf "$IMG" "$MNT" "$RUNNER_TEMP/data.dmg"
-          hdiutil create -size 2g -fs APFS -volname Data -type UDRW -ov "$RUNNER_TEMP/data.dmg"
+          hdiutil create -size 2g -fs APFS -volname Data -type UDTO -ov "$RUNNER_TEMP/data.dmg"
           mkdir -p "$MNT"
           hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$RUNNER_TEMP/data.dmg"
           DMG="$RUNNER_TEMP/ipsw/044-76040-038.dmg"
