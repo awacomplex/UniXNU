@@ -203,6 +203,8 @@ bool NativeRamBlock::start(IOService *provider)
   // Boot memory belongs to the loader/kernel; never allocate or free it here.
   if (!bytes || bytes > 0x80000000 || (physical & 4095) || (!packedInput && (bytes & 4095)) ||
       physical < gPhysBase || bytes > gPhysSize || physical - gPhysBase > gPhysSize - bytes) return false;
+  { char d[160]; snprintf(d, sizeof d, "D2XQ-RBSTART packed=%d phys=%llx bytes=%llx", (int)packedInput,
+        (unsigned long long)physical, (unsigned long long)bytes); d2xq_console_text(d); }
   memory = reinterpret_cast<uint8_t *>(ml_static_ptovirt(physical));
   if (!memory || !(gate = IOLockAlloc())) return false;
   uint64_t logical=bytes;
@@ -224,6 +226,8 @@ bool NativeRamBlock::start(IOService *provider)
     }
   }
   capacity = logical / 512;
+  { char d[160]; snprintf(d, sizeof d, "D2XQ-RBLOG logical=%llx capacity=%llx isBig=%d",
+        (unsigned long long)logical, (unsigned long long)capacity, (int)isBig); d2xq_console_text(d); }
   SHA256_CTX context;
   SHA256_Init(&context);
   if(isBig){
