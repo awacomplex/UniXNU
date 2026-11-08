@@ -248,6 +248,8 @@ jobs:
 
       - name: Prepare a bare Data seed
         if: inputs.make_data_seed == true && contains(inputs.steps, 'payload')
+        env:
+          IPSW_URL: ${{ inputs.ipsw_url }}
         run: |
           set -euo pipefail
           IMG="$RUNNER_TEMP/data.cdr"
@@ -257,6 +259,30 @@ jobs:
           hdiutil create -size 16g -layout NONE -fs APFS -volname Data -type UDTO -ov "$IMG"
           mkdir -p "$MNT"
           hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$IMG"
+          OSVOL=""
+          if [ -n "${IPSW_URL:-}" ]; then
+            echo "fetching the IPSW for the OS private/var"
+            curl -L --retry 3 -o "$RUNNER_TEMP/ipsw.zip" "$IPSW_URL"
+            mkdir -p "$RUNNER_TEMP/ipsw"
+            unzip -o -q "$RUNNER_TEMP/ipsw.zip" '044-76040-038.dmg' -d "$RUNNER_TEMP/ipsw"
+            hdiutil attach -nobrowse -readonly -plist "$RUNNER_TEMP/ipsw/044-76040-038.dmg" > "$RUNNER_TEMP/os-attach.plist"
+            OSVOL=$(python3 - "$RUNNER_TEMP/os-attach.plist" <<'PY'
+          import plistlib, sys
+          info = plistlib.load(open(sys.argv[1], "rb"))
+          for e in info.get("system-entities", []):
+              point = e.get("mount-point", "")
+              if point.startswith("/Volumes/"):
+                  print(point)
+                  break
+          PY
+)
+          fi
+          if [ -n "$OSVOL" ] && [ -d "$OSVOL/private/var" ]; then
+            echo "copying the OS private/var from $OSVOL"
+            mkdir -p "$MNT/private"
+            ditto "$OSVOL/private/var" "$MNT/private/var"
+            rm -rf "$MNT/private/var/staged_system_apps"
+          fi
           mkdir -p "$MNT/private/var/run" "$MNT/private/var/db" "$MNT/private/var/log" \
                    "$MNT/private/var/tmp" "$MNT/private/var/mobile" "$MNT/private/var/keybags"
           chmod 1777 "$MNT/private/var/tmp"
@@ -274,6 +300,7 @@ jobs:
           diskutil apfs list || true
           diskutil info "$RUNNER_TEMP/check-mnt" || true
           hdiutil detach "$RUNNER_TEMP/check-mnt" || true
+          if [ -n "${OSVOL:-}" ]; then for d in /Volumes/*; do case "$d" in *044-76040*) hdiutil detach "$d" || true;; esac; done; fi
           python3 - "$IMG" "$SEED" <<'PY'
           import sys
           from pathlib import Path
