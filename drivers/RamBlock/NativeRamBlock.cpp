@@ -406,8 +406,8 @@ static int selectVolumeSeed(const char *uuid, dev_t *device, char *path, size_t 
       if (!ram) continue;
       ram->attachStore();
       if (!ram->seedInfo(&base,&bytes,hash)) continue;
-      { char dbg[160]; snprintf(dbg, sizeof dbg, "D2XQ-SEEDNAME %s base=%lx bytes=%lx",
-            name->getCStringNoCopy(), base, bytes); d2xq_console_text(dbg); }
+      { char dbg[160]; snprintf(dbg, sizeof dbg, "D2XQ-SEEDNAME %s base=%llx bytes=%llx",
+            name->getCStringNoCopy(), (unsigned long long)base, (unsigned long long)bytes); d2xq_console_text(dbg); }
       candidate = static_cast<dev_t>(makedev(mjr->unsigned32BitValue(), mnr->unsigned32BitValue()));
       snprintf(candidatePath, sizeof(candidatePath), "/dev/%s", name->getCStringNoCopy());
       selected = true;
