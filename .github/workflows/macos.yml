@@ -310,12 +310,12 @@ jobs:
           IPSW_URL: ${{ inputs.ipsw_url }}
         run: |
           set -euo pipefail
-          IMG="$RUNNER_TEMP/data-raw.img"
+          IMG="$RUNNER_TEMP/data-raw"
           MNT="$RUNNER_TEMP/cont-mnt"
-          rm -rf "$IMG" "$MNT" "$RUNNER_TEMP/data.udro"
-          hdiutil create -size 4g -fs APFS -volname Data -type UDRO -ov "$RUNNER_TEMP/data.udro"
+          rm -rf "$IMG" "$MNT" "$RUNNER_TEMP/data.dmg"
+          hdiutil create -size 4g -fs APFS -volname Data -type UDRO -ov "$RUNNER_TEMP/data.dmg"
           mkdir -p "$MNT"
-          hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$RUNNER_TEMP/data.udro"
+          hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$RUNNER_TEMP/data.dmg"
           DMG="$RUNNER_TEMP/ipsw/044-76040-038.dmg"
           if [ ! -f "$DMG" ] && [ -n "${IPSW_URL:-}" ]; then
             curl -L --retry 3 -o "$RUNNER_TEMP/ipsw.zip" "$IPSW_URL"
@@ -347,7 +347,7 @@ jobs:
           print("Data container UUID", info["VolumeUUID"])
           PY
           hdiutil detach "$MNT"
-          hdiutil convert "$RUNNER_TEMP/data.udro" -format UDRW -o "$IMG"
+          hdiutil convert "$RUNNER_TEMP/data.dmg" -format UDRW -o "$IMG"
           ls -l "$IMG"
 
       - name: Build payload
@@ -386,7 +386,7 @@ jobs:
         with:
           name: data-container
           path: |
-            ${{ runner.temp }}/data-raw.img
+            ${{ runner.temp }}/data-raw.dmg
             ${{ runner.temp }}/cont-uuid.txt
           if-no-files-found: warn
 
