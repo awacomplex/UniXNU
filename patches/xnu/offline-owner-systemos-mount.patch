@@ -276,7 +276,7 @@
  
  	/*
  	 * So that init task is set with uid,gid 0 token
-@@ -7148,6 +7391,17 @@
+@@ -7148,6 +7391,15 @@
  	mach_vm_size_t map_page_size = vm_map_page_size(map);
  
  	(void) mach_vm_allocate_kernel(map, &scratch_addr, map_page_size, VM_FLAGS_ANYWHERE, VM_KERN_MEMORY_NONE);
@@ -287,14 +287,12 @@
 +#endif
 +#if defined(XNU_OWNER_DATA_MOUNT) && XNU_OWNER_DATA_MOUNT
 +	int data_error = native_owner_data_prepare(p, (user_addr_t)scratch_addr);
-+	if (data_error) panic("offline scratch Data mount failed: %d stage=%d status=%d dev=%d base=%lx size=%lx",
-+	    data_error, native_owner_data_stage, native_owner_data_status, (int)native_owner_data_device,
-+	    native_owner_data_seed_base, native_owner_data_seed_size);
++	if (data_error) panic("offline scratch Data mount failed: %d", data_error);
 +#endif
  #if CONFIG_MEMORYSTATUS
  	(void) memorystatus_init_at_boot_snapshot();
  #endif /* CONFIG_MEMORYSTATUS */
-@@ -7162,7 +7416,7 @@
+@@ -7162,7 +7414,7 @@
  
  		if (is_release_suffix) {
  			printf("load_init_program: attempting to load /sbin/launchd\n");
@@ -303,7 +301,7 @@
  			if (!error) {
  				return;
  			}
-@@ -7173,7 +7427,7 @@
+@@ -7173,7 +7425,7 @@
  			strlcat(launchd_path, launchd_suffix, sizeof(launchd_path));
  
  			printf("load_init_program: attempting to load %s\n", launchd_path);
@@ -312,7 +310,7 @@
  			if (!error) {
  				return;
  			} else if (error != ENOENT) {
-@@ -7186,7 +7440,7 @@
+@@ -7186,7 +7438,7 @@
  	error = ENOENT;
  	for (i = 0; i < sizeof(init_programs) / sizeof(init_programs[0]); i++) {
  		printf("load_init_program: attempting to load %s\n", init_programs[i]);
