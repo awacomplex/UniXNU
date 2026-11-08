@@ -247,7 +247,7 @@ jobs:
           df -h "$GITHUB_WORKSPACE"
 
       - name: Prepare a bare Data seed
-        if: inputs.make_data_seed == true && contains(inputs.steps, 'payload')
+        if: false
         env:
           IPSW_URL: ${{ inputs.ipsw_url }}
         run: |
