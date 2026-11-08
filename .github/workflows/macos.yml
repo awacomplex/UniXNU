@@ -314,7 +314,7 @@ jobs:
           IMG="$RUNNER_TEMP/data-raw"
           MNT="$RUNNER_TEMP/cont-mnt"
           rm -rf "$IMG" "$MNT" "$RUNNER_TEMP/data.dmg"
-          hdiutil create -size 4g -fs APFS -volname Data -type UDRO -ov "$RUNNER_TEMP/data.dmg"
+          hdiutil create -size 2g -fs APFS -volname Data -type UDRW -ov "$RUNNER_TEMP/data.dmg"
           mkdir -p "$MNT"
           hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$RUNNER_TEMP/data.dmg"
           DMG="$RUNNER_TEMP/ipsw/044-76040-038.dmg"
@@ -349,7 +349,7 @@ jobs:
           print("Data container UUID", info["VolumeUUID"])
           PY
           hdiutil detach "$MNT"
-          hdiutil convert "$RUNNER_TEMP/data.dmg" -format UDRW -o "$IMG"
+          cp "$RUNNER_TEMP/data.dmg" "$IMG"
           ls -l "$IMG"
 
       - name: Build payload
