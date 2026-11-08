@@ -314,9 +314,9 @@ jobs:
           IMG="$RUNNER_TEMP/data-raw"
           MNT="$RUNNER_TEMP/cont-mnt"
           rm -rf "$IMG" "$MNT" "$RUNNER_TEMP/data.dmg"
-          hdiutil create -size 2g -fs APFS -volname Data -type UDTO -ov "$RUNNER_TEMP/data.dmg"
+          hdiutil create -size 2g -fs APFS -volname Data -type SPARSE -ov "$RUNNER_TEMP/data.sparseimage"
           mkdir -p "$MNT"
-          hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$RUNNER_TEMP/data.dmg"
+          hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$RUNNER_TEMP/data.sparseimage"
           DMG="$RUNNER_TEMP/ipsw/044-76040-038.dmg"
           if [ ! -f "$DMG" ] && [ -n "${IPSW_URL:-}" ]; then
             curl -L --retry 3 -o "$RUNNER_TEMP/ipsw.zip" "$IPSW_URL"
@@ -349,8 +349,8 @@ jobs:
           print("Data container UUID", info["VolumeUUID"])
           PY
           hdiutil detach "$MNT"
-          cp "$RUNNER_TEMP/data.dmg" "$IMG"
-          ls -l "$IMG"
+          hdiutil convert "$RUNNER_TEMP/data.sparseimage" -format UDRW -o "$IMG"
+          ls -l "${IMG}.dmg"
 
       - name: Build payload
         id: payload
