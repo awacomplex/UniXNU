@@ -254,7 +254,7 @@ jobs:
           SEED="$RUNNER_TEMP/data.dbr"
           MNT="$RUNNER_TEMP/data-mnt"
           rm -rf "$IMG" "$SEED" "$MNT"
-          hdiutil create -size 5m -layout NONE -fs APFS -volname Data -type UDTO -ov "$IMG"
+          hdiutil create -size 1m -layout NONE -fs APFS -volname Data -type UDTO -ov "$IMG"
           mkdir -p "$MNT"
           hdiutil attach -nobrowse -owners off -mountpoint "$MNT" "$IMG"
           mkdir -p "$MNT/private/var/run" "$MNT/private/var/db" "$MNT/private/var/log" \
@@ -268,6 +268,12 @@ jobs:
           print("Data seed volume UUID", info["VolumeUUID"])
           PY
           hdiutil detach "$MNT"
+          echo "=== APFS validation ==="
+          mkdir -p "$RUNNER_TEMP/check-mnt"
+          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/check-mnt" "$IMG" || echo "attach failed"
+          diskutil apfs list || true
+          diskutil info "$RUNNER_TEMP/check-mnt" || true
+          hdiutil detach "$RUNNER_TEMP/check-mnt" || true
           python3 - "$IMG" "$SEED" <<'PY'
           import sys
           from pathlib import Path
