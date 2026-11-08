@@ -271,8 +271,9 @@ jobs:
           fi
           if [ -n "$OSVOL" ] && [ -d "$OSVOL/private/var" ]; then
             echo "copying the OS private/var from $OSVOL"
-            mkdir -p "$MNT/private"
-            ditto "$OSVOL/private/var" "$MNT/private/var"
+            ls -la "$OSVOL/private/var" | head -n 30 || true
+            mkdir -p "$MNT/private/var"
+            cp -a "$OSVOL/private/var/." "$MNT/private/var/" 2>&1 | tail -n 20 || echo "cp failed"
             rm -rf "$MNT/private/var/staged_system_apps"
           fi
           mkdir -p "$MNT/private/var/run" "$MNT/private/var/db" "$MNT/private/var/log" \
