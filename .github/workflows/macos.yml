@@ -265,17 +265,8 @@ jobs:
             curl -L --retry 3 -o "$RUNNER_TEMP/ipsw.zip" "$IPSW_URL"
             mkdir -p "$RUNNER_TEMP/ipsw"
             unzip -o -q "$RUNNER_TEMP/ipsw.zip" '044-76040-038.dmg' -d "$RUNNER_TEMP/ipsw"
-            hdiutil attach -nobrowse -readonly -plist "$RUNNER_TEMP/ipsw/044-76040-038.dmg" > "$RUNNER_TEMP/os-attach.plist"
-            OSVOL=$(python3 - "$RUNNER_TEMP/os-attach.plist" <<'PY'
-          import plistlib, sys
-          info = plistlib.load(open(sys.argv[1], "rb"))
-          for e in info.get("system-entities", []):
-              point = e.get("mount-point", "")
-              if point.startswith("/Volumes/"):
-                  print(point)
-                  break
-          PY
-)
+            OSVOL=$(hdiutil attach -nobrowse -readonly "$RUNNER_TEMP/ipsw/044-76040-038.dmg" | awk '/\/Volumes\// {print $NF; exit}')
+            echo "OS volume at $OSVOL"
           fi
           if [ -n "$OSVOL" ] && [ -d "$OSVOL/private/var" ]; then
             echo "copying the OS private/var from $OSVOL"
