@@ -1,6 +1,6 @@
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2225,6 +2225,52 @@
+@@ -2225,6 +2225,54 @@
  	struct _sr_file_mappings *sr_file_mappings,
  	struct vm_shared_region  *shared_region);
  
@@ -29,6 +29,7 @@
 +	dev_t root_device = NODEV, cache_device = NODEV, expected = NODEV;
 +	char device_path[64];
 +	boolean_t authorized = FALSE;
++	{ extern void d2xq_console_text(const char *); d2xq_console_text("CI194 A5 carrier in\n"); }
 +	if (process_root != rootvnode || !file || vnode_vtype(file) != VREG) goto out;
 +	mount_t root_mount = vnode_mount(process_root), cache_mount = vnode_mount(file);
 +	if (!root_mount || !cache_mount ||
@@ -40,6 +41,7 @@
 +	authorized = TRUE;
 +	(void)root_uuid; (void)cache_uuid; (void)directory; (void)expected_parent;
 +	(void)device_vnode; (void)expected; (void)device_path;
++	{ extern void d2xq_console_text(const char *); d2xq_console_text("CI194 A6 carrier out\n"); }
 +out:
 +	if (expected_parent) vnode_put(expected_parent);
 +	native_owner_cache_carrier_root_device = root_device;
