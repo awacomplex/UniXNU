@@ -60,7 +60,7 @@
 +#endif
 +	const char *mountpoint = "/";
 +#else
-+	const char *mountpoint = "/private/preboot";
++	const char *mountpoint = "/System/Library/Caches/com.apple.dyld";
 +#endif
 +#if !defined(XNU_OWNER_UNION_SYSTEMOS) || !XNU_OWNER_UNION_SYSTEMOS
 +	const char *environment = "DYLD_SHARED_CACHE_DIR=/private/preboot/System/Library/Caches/com.apple.dyld";
