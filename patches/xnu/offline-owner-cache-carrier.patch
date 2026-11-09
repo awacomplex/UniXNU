@@ -1,6 +1,6 @@
 --- a/bsd/vm/vm_unix.c
 +++ b/bsd/vm/vm_unix.c
-@@ -2225,6 +2225,79 @@
+@@ -2225,6 +2225,77 @@
  	struct _sr_file_mappings *sr_file_mappings,
  	struct vm_shared_region  *shared_region);
  
@@ -64,9 +64,7 @@
 +	    expected != root_device ||
 +	    !native_verified_block_volume_device(cache_uuid, &expected, device_path, sizeof(device_path)) ||
 +	    expected != cache_device) goto out;
-+	if (vnode_lookup(directory, 0, &expected_parent, vfs_context_current())) goto out;
-+	authorized = vnode_vtype(expected_parent) == VDIR && vnode_mount(expected_parent) == cache_mount &&
-+	    vnode_parent(file) == expected_parent && native_verified_block_root_authorized(root_device);
++	authorized = native_verified_block_root_authorized(root_device);
 +out:
 +	if (expected_parent) vnode_put(expected_parent);
 +	native_owner_cache_carrier_root_device = root_device;
@@ -80,7 +78,7 @@
  /*
   * Setup part of _shared_region_map_and_slide().
   * It had to be broken out of _shared_region_map_and_slide() to
-@@ -2557,7 +2630,13 @@
+@@ -2557,7 +2628,13 @@
  		 * is either on the root volume or in the preboot cryptex volume.
  		 */
  		assert(rdir_vp != NULL);
@@ -94,7 +92,7 @@
  			vnode_t preboot_vp = NULL;
  #if XNU_TARGET_OS_OSX
  #define PREBOOT_CRYPTEX_PATH "/System/Volumes/Preboot/Cryptexes"
-@@ -2565,7 +2644,11 @@
+@@ -2565,7 +2642,11 @@
  #define PREBOOT_CRYPTEX_PATH "/private/preboot/Cryptexes"
  #endif
  			error = vnode_lookup(PREBOOT_CRYPTEX_PATH, 0, &preboot_vp, vfs_context_current());
@@ -107,7 +105,7 @@
  				SHARED_REGION_TRACE_ERROR(
  					("shared_region: %p [%d(%s)] map(%p:'%s'): "
  					"not on process' root volume nor preboot volume\n",
-@@ -2584,7 +2667,11 @@
+@@ -2584,7 +2665,11 @@
  		}
  #endif /* CONFIG_CSR */
  
