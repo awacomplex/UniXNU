@@ -267,25 +267,48 @@ if [ "$OWNER_ROOT_PROBE" != 0 ] && [ "$OWNER_ROOT_PROBE" != 1 ]; then
   echo 'XNU_VERIFIED_ROOT_PROBE must be 0 or 1' >&2
   exit 1
 fi
-if [ "$OWNER_ROOT_PROBE" = 1 ] && { [ "${XNU_SOURCE_CORECRYPTO14:-0}" != 1 ] || [ "${XNU_CRYPTO_BOOTSTRAP:-source}" != prelinked ]; }; then
-  echo 'The owner crypto probe requires the qualified original prelinked crypto provider' >&2
+OWNER_ROOT_PROVIDER=${XNU_VERIFIED_ROOT_PROVIDER:-$OWNER_ROOT_PROBE}
+if [ "$OWNER_ROOT_PROVIDER" != 0 ] && [ "$OWNER_ROOT_PROVIDER" != 1 ]; then
+  echo 'XNU_VERIFIED_ROOT_PROVIDER must be 0 or 1' >&2
   exit 1
+fi
+if [ "$OWNER_ROOT_PROBE" = 1 ] && [ "$OWNER_ROOT_PROVIDER" != 1 ]; then
+  echo 'The owner crypto probe requires XNU_VERIFIED_ROOT_PROVIDER=1' >&2
+  exit 1
+fi
+if [ "$OWNER_ROOT_PROVIDER" = 1 ] && { [ "${XNU_SOURCE_CORECRYPTO14:-0}" != 1 ] || [ "${XNU_CRYPTO_BOOTSTRAP:-source}" != prelinked ]; }; then
+  echo 'The owner crypto provider requires original prelinked crypto' >&2
+  exit 1
+fi
+if [ "$OWNER_ROOT_PROBE" = 1 ]; then
+  VERIFIED_ROOT_ARCHIVE=${XNU_VERIFIED_ROOT_ARCHIVE:-$ROOT/build/verified-root-xnu/libVerifiedRootProbe.a}
+else
+  VERIFIED_ROOT_ARCHIVE=${XNU_VERIFIED_ROOT_ARCHIVE:-$ROOT/build/verified-root-xnu/libVerifiedRoot.a}
 fi
 OWNER_ROOT_AUDIT=${XNU_OWNER_ROOT_AUDIT:-0}
 if [ "$OWNER_ROOT_AUDIT" != 0 ] && [ "$OWNER_ROOT_AUDIT" != 1 ]; then
   echo 'XNU_OWNER_ROOT_AUDIT must be 0 or 1' >&2
   exit 1
 fi
-if [ "$OWNER_ROOT_AUDIT" = 1 ] && [ "$OWNER_ROOT_PROBE" != 1 ]; then
+if [ "$OWNER_ROOT_AUDIT" = 1 ] && [ "$OWNER_ROOT_PROVIDER" != 1 ]; then
   echo 'The root-binding audit requires real owner-verified block crypto' >&2
   exit 1
 fi
 OWNER_ROOT_TRUST=${XNU_OWNER_ROOT_TRUST:-0}
+UFS_OWNER_ROOT=${XNU_NATIVE_UFS_OWNER_ROOT:-0}
+if [ "$UFS_OWNER_ROOT" != 0 ] && [ "$UFS_OWNER_ROOT" != 1 ]; then
+  echo 'XNU_NATIVE_UFS_OWNER_ROOT must be 0 or 1' >&2
+  exit 1
+fi
+if [ "$UFS_OWNER_ROOT" = 1 ] && { [ "${XNU_NATIVE_UFS:-0}" != 1 ] || [ "$OWNER_ROOT_PROVIDER" != 1 ] || [ "${XNU_NATIVE_VIRTIO_BLOCK:-0}" = 1 ]; }; then
+  echo 'UFS owner root requires NativeUfs and the owner crypto provider, with Virtio root API disabled' >&2
+  exit 1
+fi
 if [ "$OWNER_ROOT_TRUST" != 0 ] && [ "$OWNER_ROOT_TRUST" != 1 ]; then
   echo 'XNU_OWNER_ROOT_TRUST must be 0 or 1' >&2
   exit 1
 fi
-if [ "$OWNER_ROOT_TRUST" = 1 ] && { [ "$OWNER_ROOT_AUDIT" != 1 ] || [ "${XNU_NATIVE_VIRTIO_BLOCK:-0}" != 1 ]; }; then
+if [ "$OWNER_ROOT_TRUST" = 1 ] && { [ "$OWNER_ROOT_AUDIT" != 1 ] || { [ "${XNU_NATIVE_VIRTIO_BLOCK:-0}" != 1 ] && [ "$UFS_OWNER_ROOT" != 1 ]; }; }; then
   echo 'Owner root acceptance requires actual mounted-media binding and verified block storage' >&2
   exit 1
 fi
@@ -366,9 +389,9 @@ if [ "$(cat "$MOBILE_DISPLAY_STAMP" 2>/dev/null || echo 0)" != "$NATIVE_MOBILE_D
   printf '%s\n' "$NATIVE_MOBILE_DISPLAY:$NATIVE_LEGACY_DISPLAY" > "$MOBILE_DISPLAY_STAMP"
 fi
 OWNER_ROOT_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.owner-root-probe-mode
-if [ "$(cat "$OWNER_ROOT_STAMP" 2>/dev/null || echo 0:0:0:0:0:0)" != "$OWNER_ROOT_PROBE:$OWNER_ROOT_AUDIT:$OWNER_ROOT_TRUST:$ADRENO_FIRMWARE_PROBE:$ADRENO_PM4_PROBE:$SMMU4K_PROBE:$CONSTANT_UPLOADS_PROBE:$NATIVE_LEGACY_DISPLAY:$NATIVE_OFFLINE_GPU" ]; then
+if [ "$(cat "$OWNER_ROOT_STAMP" 2>/dev/null || echo 0:0:0:0:0:0)" != "$OWNER_ROOT_PROVIDER:$UFS_OWNER_ROOT:$OWNER_ROOT_PROBE:$OWNER_ROOT_AUDIT:$OWNER_ROOT_TRUST:$ADRENO_FIRMWARE_PROBE:$ADRENO_PM4_PROBE:$SMMU4K_PROBE:$CONSTANT_UPLOADS_PROBE:$NATIVE_LEGACY_DISPLAY:$NATIVE_OFFLINE_GPU" ]; then
   rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/bsd_init.o"
-  printf '%s\n' "$OWNER_ROOT_PROBE:$OWNER_ROOT_AUDIT:$OWNER_ROOT_TRUST:$ADRENO_FIRMWARE_PROBE:$ADRENO_PM4_PROBE:$SMMU4K_PROBE:$CONSTANT_UPLOADS_PROBE:$NATIVE_LEGACY_DISPLAY:$NATIVE_OFFLINE_GPU" > "$OWNER_ROOT_STAMP"
+  printf '%s\n' "$OWNER_ROOT_PROVIDER:$UFS_OWNER_ROOT:$OWNER_ROOT_PROBE:$OWNER_ROOT_AUDIT:$OWNER_ROOT_TRUST:$ADRENO_FIRMWARE_PROBE:$ADRENO_PM4_PROBE:$SMMU4K_PROBE:$CONSTANT_UPLOADS_PROBE:$NATIVE_LEGACY_DISPLAY:$NATIVE_OFFLINE_GPU" > "$OWNER_ROOT_STAMP"
 fi
 OWNER_CACHE_MOUNT=${XNU_OWNER_CACHE_MOUNT:-0}
 if [ "$OWNER_CACHE_MOUNT" != 0 ] && [ "$OWNER_CACHE_MOUNT" != 1 ]; then
@@ -727,8 +750,7 @@ PY_BINDINGS
     KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES -Wl,-force_load,$PTHREAD_ARCHIVE"
     KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $PTHREAD_ARCHIVE"
   fi
-  if [ "$OWNER_ROOT_PROBE" = 1 ]; then
-    VERIFIED_ROOT_ARCHIVE=${XNU_VERIFIED_ROOT_ARCHIVE:-$ROOT/build/verified-root-xnu/libVerifiedRootProbe.a}
+  if [ "$OWNER_ROOT_PROVIDER" = 1 ]; then
     test -f "$VERIFIED_ROOT_ARCHIVE"
     KERNEL_EXTRA_ARCHIVES="$KERNEL_EXTRA_ARCHIVES -Wl,-force_load,$VERIFIED_ROOT_ARCHIVE"
     KERNEL_ARCHIVE_DEPENDENCIES="$KERNEL_ARCHIVE_DEPENDENCIES $VERIFIED_ROOT_ARCHIVE"
@@ -756,7 +778,7 @@ PY_BINDINGS
 fi
 python3 - "${XNU_NATIVE_AES:-0}" "${XNU_NATIVE_AES_ARCHIVE:-$ROOT/build/software-aes/libSoftwareAES.a}" \
   "${XNU_NATIVE_VIRTIO_BLOCK:-0}" "${XNU_NATIVE_VIRTIO_BLOCK_ARCHIVE:-$ROOT/build/virtio-mmio-block/libVirtioMmioBlock.a}" \
-  "$OWNER_ROOT_PROBE" "${XNU_VERIFIED_ROOT_ARCHIVE:-$ROOT/build/verified-root-xnu/libVerifiedRootProbe.a}" \
+  "$OWNER_ROOT_PROVIDER" "$VERIFIED_ROOT_ARCHIVE" \
   "$NATIVE_RAM_BLOCK" "$ROOT/build/ram-block/libRamBlock.a" \
   "$ADRENO_FIRMWARE_PROBE" "$ROOT/build/adreno-firmware-probe/libAdrenoFirmwareProbe.a" \
   "$ADRENO_PM4_PROBE" "$ROOT/build/adreno-pm4-probe/libAdrenoPM4Probe.a" \
